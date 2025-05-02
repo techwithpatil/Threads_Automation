@@ -1,0 +1,49 @@
+name: Viral Threads Poster
+
+on:
+  schedule:
+    # Post every 6 hours
+    - cron: '0 */6 * * *'       # At 00:00, 06:00, 12:00, 18:00 UTC
+    # Cleanup once daily at 23:55 UTC
+    - cron: '55 23 * * *'
+  workflow_dispatch:            # Allow manual run
+  # Optional: manually test it anytime from GitHub UI
+
+jobs:
+  post_viral_quote:
+    if: github.event.schedule == '0 */6 * * *' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Run viral post script
+        env:
+          ACCESS_TOKEN: ${{ secrets.THREADS_ACCESS_TOKEN }}
+        run: python post.py
+
+  cleanup_posted_file:
+    if: github.event.schedule == '55 23 * * *'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Clear posted_viral.txt
+        run: echo -n "" > posted_viral.txt
+
+      - name: Commit and push cleanup
+        run: |
+          git config --global user.email "actions@github.com"
+          git config --global user.name "GitHub Actions"
+          git add posted_viral.txt
+          git commit -m "🧹 Clear posted_viral.txt for next day" || echo "No changes to commit"
+          git push
